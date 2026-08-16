@@ -1,0 +1,9 @@
+{
+	"id": "obsidian-dsh",
+	"name": "DSH",
+	"version": "1.0.0",
+	"minAppVersion": "1.5.0",
+	"description": "在 Obsidian 内嵌 dsh（DeepSeek Harness）Web UI：自动托管 dsh web 子进程，ItemView 内 iframe 全尺寸嵌入。",
+	"author": "kroetz",
+	"isDesktopOnly": true
+}

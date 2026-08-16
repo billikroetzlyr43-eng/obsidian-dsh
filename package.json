@@ -1,0 +1,20 @@
+{
+  "name": "obsidian-dsh",
+  "version": "1.0.0",
+  "description": "在 Obsidian 内嵌 dsh（DeepSeek Harness）Web UI 的插件",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "test": "node --test tests/"
+  },
+  "keywords": ["obsidian", "dsh", "webview", "plugin"],
+  "author": "kroetz",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "esbuild": "^0.19.8",
+    "obsidian": "^1.5.0",
+    "typescript": "^5.3.2"
+  }
+}

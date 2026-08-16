@@ -1,0 +1,89 @@
+/* obsidian-dsh 样式：视图容器全尺寸填充、状态栏样式 */
+
+/* 视图根容器：去掉 view-content 默认内边距，避免白边；overflow hidden 防止滚动条套娃 */
+.view-content.dsh-view-content {
+	padding: 0;
+	overflow: hidden;
+}
+
+/* 全尺寸填充容器 */
+.dsh-view-container {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+/* iframe 全尺寸：width/height 100%、无边框、块级 */
+.dsh-view-container .dsh-view-iframe {
+	flex: 1 1 auto;
+	width: 100%;
+	height: 100%;
+	border: none;
+	display: block;
+	background: var(--background-primary);
+}
+
+/* 加载中提示（旋转 spinner） */
+.dsh-view-loading {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-medium);
+	background: var(--background-primary);
+}
+.dsh-view-loading::before {
+	content: "";
+	width: 18px;
+	height: 18px;
+	border: 2px solid var(--text-faint);
+	border-top-color: var(--text-accent);
+	border-radius: 50%;
+	animation: dsh-spin 0.8s linear infinite;
+}
+@keyframes dsh-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* 错误面板（不白屏：标题 + 原因 + 端口/日志信息 + 重试按钮） */
+.dsh-view-error {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	padding: 24px;
+	text-align: center;
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+.dsh-view-error-title {
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+}
+.dsh-view-error-detail {
+	color: var(--text-muted);
+	white-space: pre-wrap;
+	max-width: 520px;
+	font-size: var(--font-ui-smaller);
+}
+.dsh-view-error-meta {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	word-break: break-all;
+	max-width: 520px;
+}
+
+/* 状态栏：可点击 */
+.dsh-status-bar {
+	cursor: pointer;
+}
