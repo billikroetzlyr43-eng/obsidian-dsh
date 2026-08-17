@@ -9,6 +9,7 @@
  */
 import { Plugin, FileSystemAdapter } from 'obsidian';
 import { existsSync } from 'fs';
+import { execSync } from 'child_process';
 import * as path from 'path';
 import { DshView, VIEW_TYPE_DSH } from './dsh-view';
 import { DEFAULT_SETTINGS, DshSettings, DshSettingTab, clampPort } from './settings';
@@ -137,8 +138,13 @@ export default class DshPlugin extends Plugin {
 		].filter((p): p is string => !!p);
 		for (const c of candidates) {
 			if (c === 'dsh') {
-				// 命令名：交给 spawn 按 PATH 解析，无法预先验证存在性
-				return c;
+				// 仅当 PATH 中确实存在 dsh 命令时才采用；否则继续探测真实路径（修复：dsh 不在 PATH 时不再无条件返回 "dsh"）
+				try {
+					execSync('dsh --version', { stdio: 'ignore', timeout: 3000 });
+					return c;
+				} catch {
+					continue;
+				}
 			}
 			try {
 				if (existsSync(c)) {
