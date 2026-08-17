@@ -685,7 +685,13 @@ var DshPlugin = class extends import_obsidian3.Plugin {
     ].filter((p) => !!p);
     for (const c of candidates) {
       if (c === "dsh") {
-        return c;
+        // 只在 PATH 中确实存在 dsh 命令时才采用，否则继续探测真实路径（修复：本机 dsh 不在 PATH 时不再无条件返回 "dsh"）
+        try {
+          (0, import_child_process.execSync)("dsh --version", { stdio: "ignore", timeout: 3e3 });
+          return c;
+        } catch {
+          continue;
+        }
       }
       try {
         if ((0, import_fs.existsSync)(c)) {
