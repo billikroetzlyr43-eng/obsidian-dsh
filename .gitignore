@@ -1,17 +1,2 @@
-# 依赖与产物
 node_modules/
-.npm-cache/
-
-# 构建产物（保留 main.js 以支持直接安装/BRAT，故只忽略源码映射）
-*.map
-
-# 本地运行时文件
-dsh-dev-run.log
-data.json
-
-# 内部文档（不进仓库）
-TASK*.md
-HANDOFF.md
-
-# 备份与临时
-*.bak
+main.js

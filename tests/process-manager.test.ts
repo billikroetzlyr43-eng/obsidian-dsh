@@ -17,7 +17,7 @@ import { strict as assert } from 'node:assert';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs';
-import { decidePortAction, deriveDshCwd, probePort, DshProcessManager } from '../src/process-manager.ts';
+import { decidePortAction, deriveDshCwd, probePort, DshProcessManager, buildSpawnArgs } from '../src/process-manager.ts';
 
 test('HTTP 200 响应 → 复用已有实例（external=true，不 spawn、不 kill）', () => {
 	const action = decidePortAction({ kind: 'http-response', status: 200 });
@@ -65,6 +65,30 @@ test('deriveDshCwd 由 bin.js 路径推导 dsh 项目根（子进程 cwd）', ()
 	assert.equal(cwd, path.resolve('D:/deepseek-harness'));
 });
 
+test('buildSpawnArgs：dsh 组装 node <bin> web --port <p>，cwd 由 bin 推导', () => {
+	const out = buildSpawnArgs('dsh', {
+		engine: 'dsh',
+		binPath: 'D:/deepseek-harness/apps/cli/lib/bin.js',
+		nodePath: 'node',
+		port: 3080,
+	});
+	assert.equal(out.command, 'node');
+	assert.deepEqual(out.args, ['D:/deepseek-harness/apps/cli/lib/bin.js', 'web', '--port', '3080']);
+	assert.equal(out.cwd, path.resolve('D:/deepseek-harness'));
+});
+
+test('buildSpawnArgs：opencode 组装 <bin> serve --port <p>，cwd 取配置工作目录', () => {
+	const out = buildSpawnArgs('opencode', {
+		engine: 'opencode',
+		binPath: 'C:/x/opencode.exe',
+		port: 3081,
+		cwd: 'D:/workspace',
+	});
+	assert.equal(out.command, 'C:/x/opencode.exe');
+	assert.deepEqual(out.args, ['serve', '--port', '3081']);
+	assert.equal(out.cwd, 'D:/workspace');
+});
+
 /**
  * 等待托管器进入期望状态（集成测试用：ensureRunning 是异步 spawn，dsh web 真实启动需数秒~数十秒）。
  */
@@ -96,6 +120,7 @@ test(
 		const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'obsidian-dsh-test-'));
 		const logFile = path.join(tmpDir, 'dsh-web.log');
 		const manager = new DshProcessManager({
+			engine: 'dsh',
 			nodePath: 'node',
 			dshBinPath: 'D:/deepseek-harness/apps/cli/lib/bin.js',
 			port,

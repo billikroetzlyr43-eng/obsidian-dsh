@@ -1,12 +1,12 @@
 {
   "name": "obsidian-dsh",
-  "version": "1.0.0",
-  "description": "在 Obsidian 内嵌 dsh（DeepSeek Harness）Web UI 的插件",
+  "version": "2.0.0",
+  "description": "在 Obsidian 内嵌 dsh（DeepSeek Harness）/ OpenCode Web UI，支持一键切换双引擎的插件",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
-    "test": "node --test tests/"
+    "test": "node --test --test-isolation=none tests/process-manager.test.ts"
   },
   "keywords": ["obsidian", "dsh", "webview", "plugin"],
   "author": "kroetz",
