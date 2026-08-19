@@ -590,11 +590,13 @@ ${engine === "opencode" ? `<opencodeBin> serve --port ${port}` : `node <dshBin> 
     }
   }
   // ---------- iframe 加载 ----------
-  /** 健康检查通过后加载/重载 iframe（当前引擎端口） */
+  /** 健康检查通过后加载/重载 iframe（当前引擎端口；opencode 直进 /new 可对话视图，绕开 1.18 UI 顶部按钮失效） */
   loadIframe(port) {
     if (!this.iframeEl)
       return;
-    const url = `http://127.0.0.1:${port}/`;
+    const engine = this.plugin.getEngine();
+    const path3 = engine === "opencode" ? "/new" : "/";
+    const url = `http://127.0.0.1:${port}${path3}`;
     this.iframeEl.src = url;
   }
   onIframeLoaded() {
