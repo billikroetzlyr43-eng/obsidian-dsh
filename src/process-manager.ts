@@ -19,9 +19,6 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 
-/** 引擎标识（dsh / opencode） */
-export type Engine = 'dsh' | 'opencode';
-
 /** 进程状态机 */
 export type DshProcessState = 'stopped' | 'starting' | 'running' | 'error';
 
@@ -119,53 +116,12 @@ export function probePort(port: number, timeoutMs = 3000): Promise<PortHealth> {
 	});
 }
 
-/** 进程托管配置（§2.2 泛化：engine + 按引擎字段；nodePath 仅 dsh 用） */
+/** 进程托管配置 */
 export interface DshProcessConfig {
-	engine: Engine;                 // 当前引擎
-	nodePath?: string;              // node 可执行路径（仅 dsh），默认 'node'
-	dshBinPath?: string;            // dsh web bin 路径（仅 dsh）
-	opencodeBinPath?: string;       // opencode 可执行路径（仅 opencode）
-	port: number;                   // 监听端口
-	logFile: string;                // 日志文件路径
-	cwd?: string;                   // 工作目录（opencode 用：cfg.cwd）
-}
-
-/** buildSpawnArgs 的入参：统一以 binPath 表达可执行/脚本路径 */
-export interface SpawnConfig {
-	engine: Engine;
-	binPath: string;
-	nodePath?: string;
-	port: number;
-	cwd?: string;
-}
-
-/**
- * 按引擎组装 spawn 命令（纯函数，便于单测，§2.2）：
- *  - dsh：`node <bin> web --port <p>`，cwd 由 bin 路径推导（deriveDshCwd）
- *  - opencode：`<bin> serve --port <p>`，cwd 取配置的工作目录
- */
-export function buildSpawnArgs(
-	engine: Engine,
-	cfg: SpawnConfig
-): { command: string; args: string[]; cwd: string } {
-	if (engine === 'opencode') {
-		return {
-			command: cfg.binPath,
-			args: ['serve', '--port', String(cfg.port)],
-			cwd: cfg.cwd || '',
-		};
-	}
-	// dsh
-	return {
-		command: cfg.nodePath || 'node',
-		args: [cfg.binPath, 'web', '--port', String(cfg.port)],
-		cwd: deriveDshCwd(cfg.binPath),
-	};
-}
-
-/** opencode 工作目录的简单归一（目录存在性检查放 startChild 里） */
-export function deriveOpencodeCwd(cwd?: string): string {
-	return (cwd || '').trim();
+	nodePath: string;   // node 可执行路径，默认 'node'（PATH 中的 node）
+	dshBinPath: string; // dsh web bin 路径，默认 D:/deepseek-harness/apps/cli/lib/bin.js
+	port: number;       // 监听端口
+	logFile: string;    // 日志文件路径
 }
 
 /** 状态信息（状态栏/视图据此更新） */
@@ -195,8 +151,7 @@ export class DshProcessManager {
 	private stopping = false;
 
 	constructor(cfg: DshProcessConfig) {
-		// 兼容未显式指定 engine 的老调用（集成单测），默认 dsh
-		this.cfg = { ...cfg, engine: cfg.engine ?? 'dsh' };
+		this.cfg = cfg;
 	}
 
 	// ---------- 只读查询 ----------
@@ -286,55 +241,39 @@ export class DshProcessManager {
 
 	// ---------- spawn + 健康检查 ----------
 
-	/** spawn 子进程并进入 starting 态，随后开始健康检查循环（§2.2 用 buildSpawnArgs 组装命令） */
+	/** spawn 子进程并进入 starting 态，随后开始健康检查循环 */
 	private async startChild(): Promise<void> {
-		const { engine } = this.cfg;
+		const { nodePath, dshBinPath, port } = this.cfg;
 
-		// 按引擎解析可执行/脚本路径
-		const binPath = engine === 'opencode' ? this.cfg.opencodeBinPath ?? '' : this.cfg.dshBinPath ?? '';
-
-		if (!binPath) {
+		if (!dshBinPath) {
 			this.setState(
 				'error',
-				engine === 'opencode'
-					? '未配置 opencode 可执行路径：请在插件设置中填写 opencode 的 exe 路径，或设置环境变量 OPENCODE_BIN。'
-					: '未配置 dsh 可执行路径：请在插件设置中填写 dsh 的 bin.js 路径，或设置环境变量 DSH_BIN。'
+				'未配置 dsh 可执行路径：请在插件设置中填写 dsh 的 bin.js 路径，或设置环境变量 DSH_BIN。'
 			);
 			return;
 		}
 
-		const { command, args, cwd } = buildSpawnArgs(engine, {
-			engine,
-			binPath,
-			nodePath: this.cfg.nodePath,
-			port: this.cfg.port,
-			cwd: this.cfg.cwd,
-		});
+		const dshCwd = deriveDshCwd(dshBinPath);
 
-		if (!cwd || !fs.existsSync(cwd)) {
-			this.setState(
-				'error',
-				engine === 'opencode'
-					? `opencode 工作目录不存在：${cwd || '(空)'}，请检查“OpenCode 工作目录”设置。`
-					: `dsh 项目根目录不存在：${cwd}，请检查“dsh 可执行路径”设置。`
-			);
+		if (!fs.existsSync(dshCwd)) {
+			this.setState('error', `dsh 项目根目录不存在：${dshCwd}，请检查“dsh 可执行路径”设置。`);
 			return;
 		}
 
 		this.openLog();
-		this.log(`spawn：${command} ${args.join(' ')}（cwd=${cwd}）`);
+		this.log(`spawn：${nodePath} ${dshBinPath} web --port ${port}（cwd=${dshCwd}）`);
 		this.setState('starting');
 
 		let child: ChildProcess;
 		try {
 			// detached: false —— 进程随插件（Obsidian）生命周期管理，不脱离进程组
-			child = spawn(command, args, {
-				cwd,
+			child = spawn(nodePath, [dshBinPath, 'web', '--port', String(port)], {
+				cwd: dshCwd,
 				detached: false,
 				windowsHide: true,
 			});
 		} catch (err) {
-			this.setState('error', `启动 ${engine} 进程失败：${(err as Error)?.message ?? String(err)}`);
+			this.setState('error', `启动 dsh 进程失败：${(err as Error)?.message ?? String(err)}`);
 			return;
 		}
 		this.child = child;
@@ -352,7 +291,7 @@ export class DshProcessManager {
 			this.log(`子进程 error 事件：${err.message}`);
 			this.child = null;
 			this.stopHealthCheck();
-			this.setState('error', `启动 ${engine} 进程失败：${err.message}`);
+			this.setState('error', `启动 dsh 进程失败：${err.message}`);
 		});
 
 		child.on('exit', (code, signal) => {
@@ -361,7 +300,7 @@ export class DshProcessManager {
 			this.stopHealthCheck();
 			// stopping 时 state 已是 'stopped'，不覆盖
 			if (this.state === 'starting' || this.state === 'running') {
-				this.setState('error', `${engine} web 进程退出（code=${code ?? '无'}），请查看日志：${this.cfg.logFile}`);
+				this.setState('error', `dsh web 进程退出（code=${code ?? '无'}），请查看日志：${this.cfg.logFile}`);
 			}
 		});
 
@@ -390,7 +329,7 @@ export class DshProcessManager {
 				this.stopHealthCheck();
 				this.setState(
 					'error',
-					`${this.cfg.engine} 启动后 ${HEALTH_PROBE_MAX_MS / 1000} 秒内健康检查未通过，请查看日志：${this.cfg.logFile}`
+					`dsh 启动后 ${HEALTH_PROBE_MAX_MS / 1000} 秒内健康检查未通过，请查看日志：${this.cfg.logFile}`
 				);
 				await this.killOwnChild();
 			}
